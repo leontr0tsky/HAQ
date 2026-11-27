@@ -197,7 +197,6 @@ class Retriever:
         self._matrix = self._vectorizer.fit_transform(
             self._document(entry) for entry in self.entries
         )
-<<<<<<< HEAD
         indices_by_category: dict[str, list[int]] = {}
         for index, entry in enumerate(self.entries):
             indices_by_category.setdefault(entry.category, []).append(index)
@@ -205,10 +204,11 @@ class Retriever:
         self._indices_by_category = {
             category: tuple(indices) for category, indices in indices_by_category.items()
         }
-=======
         self._feature_names = self._vectorizer.get_feature_names_out()
-        self._doc_terms = tuple(frozenset(row.indices) for row in self._matrix)
->>>>>>> 410afaecea8376bf598ca8a3d28db59a81de8dfe
+        self._doc_terms = tuple(
+            frozenset(self._matrix.indices[start:end])
+            for start, end in zip(self._matrix.indptr[:-1], self._matrix.indptr[1:])
+        )
 
     @staticmethod
     def _document(entry: RetrievedPassage) -> str:
@@ -219,13 +219,12 @@ class Retriever:
     def categories(self) -> tuple[str, ...]:
         return tuple(sorted({entry.category for entry in self.entries}))
 
-<<<<<<< HEAD
     def clear_query_cache(self) -> None:
         """Drop cached results for this immutable index."""
 
         with self._query_cache_lock:
             self._query_cache.clear()
-=======
+
     def _shares_enough_terms(
         self,
         index: int,
@@ -248,7 +247,6 @@ class Retriever:
         if query_phrases & doc_terms:
             return True
         return len(query_unigrams) == 1 and unigram_hits == 1
->>>>>>> 410afaecea8376bf598ca8a3d28db59a81de8dfe
 
     def search(
         self,
@@ -263,7 +261,6 @@ class Retriever:
         if not cleaned or top_k < 1:
             return ()
 
-<<<<<<< HEAD
         cache_key = (cleaned, category or "", top_k)
         if self._query_cache_size:
             with self._query_cache_lock:
@@ -271,24 +268,6 @@ class Retriever:
                 if cached is not None:
                     self._query_cache.move_to_end(cache_key)
                     return cached
-=======
-        query_vector = self._vectorizer.transform([cleaned])
-        query_features = set(query_vector.nonzero()[1].tolist())
-        query_unigrams = {
-            index for index in query_features if " " not in self._feature_names[index]
-        }
-        query_phrases = query_features - query_unigrams
-        scores = cosine_similarity(query_vector, self._matrix).ravel()
-        ranked = sorted(enumerate(scores), key=lambda item: item[1], reverse=True)
-        candidates = [
-            (index, float(score))
-            for index, score in ranked
-            if (not category or category == "All" or self.entries[index].category == category)
-            and self._shares_enough_terms(index, query_unigrams, query_phrases)
-        ]
-        if not candidates or candidates[0][1] < self.min_score:
-            return ()
->>>>>>> 410afaecea8376bf598ca8a3d28db59a81de8dfe
 
         if not category or category == "All":
             candidate_indices = self._all_indices
@@ -300,9 +279,21 @@ class Retriever:
             results: tuple[RetrievedPassage, ...] = ()
         else:
             scores = (self._matrix @ query_vector.T).toarray().ravel()
-            ranked = sorted(candidate_indices, key=scores.__getitem__, reverse=True)
-            top_score = float(scores[ranked[0]])
-            if top_score < self.min_score:
+            query_features = set(query_vector.indices)
+            query_unigrams = {
+                index for index in query_features if " " not in self._feature_names[index]
+            }
+            query_phrases = query_features - query_unigrams
+            ranked = sorted(
+                (
+                    index for index in candidate_indices
+                    if self._shares_enough_terms(index, query_unigrams, query_phrases)
+                ),
+                key=scores.__getitem__,
+                reverse=True,
+            )
+            top_score = float(scores[ranked[0]]) if ranked else 0.0
+            if not ranked or top_score < self.min_score:
                 results = ()
             else:
                 relative_floor = max(self.min_score, top_score * self.relative_score)
