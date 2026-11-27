@@ -826,27 +826,22 @@ body, .gradio-container {
   padding: 11px 14px;
 }
 
-.haq-plain {
-  background: #f4f7f2;
-  border-radius: 7px;
-  padding: 11px 12px;
-}
-
-.haq-plain strong {
-  color: #315443;
-  display: block;
-  font-size: 0.66rem;
-  font-weight: 850;
-  letter-spacing: 0.07em;
-  margin-bottom: 4px;
-  text-transform: uppercase;
-}
-
-.haq-plain p {
-  color: #34443a;
-  font-size: 0.86rem;
+.haq-takeaway {
+  color: var(--haq-ink);
+  font-size: 1.1rem;
   line-height: 1.55;
-  margin: 0;
+}
+
+.haq-excerpt {
+  border-top: 1px solid var(--haq-line-soft);
+  margin-top: 12px;
+  padding-top: 10px;
+}
+
+.haq-excerpt summary {
+  color: var(--haq-primary);
+  cursor: pointer;
+  font-weight: 650;
 }
 
 .haq-note {
@@ -1809,14 +1804,14 @@ def _render_source_card(passage) -> str:
         {_badge_for(passage)}
         <span class="haq-cat">{_escape(category)}</span>
       </div>
+      <p class="haq-takeaway">{_escape(passage.plain_summary)}</p>
+      <p class="haq-note"><strong>When this applies:</strong> {_escape(passage.applicability_note)}</p>
       <h3>{_escape(passage.title)}</h3>
       <p class="haq-section-name">{_escape(passage.section)}</p>
-      <blockquote class="haq-quote">{_escape(passage.text)}</blockquote>
-      <div class="haq-plain">
-        <strong>Plain-language summary of this passage</strong>
-        <p>{_escape(passage.plain_summary)}</p>
-      </div>
-      <p class="haq-note"><strong>Applicability:</strong> {_escape(passage.applicability_note)}</p>
+      <details class="haq-excerpt">
+        <summary>Read the source excerpt</summary>
+        <blockquote class="haq-quote">{_escape(passage.text)}</blockquote>
+      </details>
       <div class="haq-source-meta">
         Jurisdiction: {_escape(passage.jurisdiction)}<br>
         Collected: {_escape(passage.collection_date)} ·
@@ -1879,8 +1874,8 @@ def render_guide(result: GuideResult, *, ai_answer: AIAnswer | None = None, ai_s
     else:
         body = f"""
           {status_block}
-          <div class="haq-response-note">{_escape(result.message)}</div>
           {cards}
+          <p class="haq-response-note">{_escape(result.message)}</p>
         """
         meta = f"{len(result.passages)} {count_label} · local search"
 
