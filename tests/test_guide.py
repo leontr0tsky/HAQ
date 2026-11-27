@@ -63,3 +63,20 @@ def test_get_retriever_rebuilds_when_library_changes(tmp_path) -> None:
     assert first is not second
     assert second.entries[0].title.endswith("Updated")
     clear_retriever_cache()
+
+
+def test_everyday_unpaid_wage_questions_use_labour_sources() -> None:
+    for question in (
+        "What can I do if my boss hasn't paid me?",
+        "My employer didn’t pay me",
+        "My salary is overdue",
+    ):
+        result = build_guide(question)
+        assert result.query == question
+        assert result.source_ids[0] == "code-on-wages-2019-s17-payment"
+        assert all(passage.category == "labour" for passage in result.passages)
+
+
+def test_unpaid_order_does_not_trigger_wage_routing() -> None:
+    result = build_guide("The shop hasn't paid me a refund")
+    assert all(passage.category != "labour" for passage in result.passages)
