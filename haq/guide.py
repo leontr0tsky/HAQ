@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -20,6 +21,14 @@ CATEGORY_LABELS = {
     "consumer": "Consumer",
     "labour": "Unpaid wages",
 }
+
+_WORK_CONTEXT = re.compile(r"\b(?:boss|employer|salary|wages?|paycheck|paycheque)\b", re.I)
+_MISSING_PAY = re.compile(
+    r"\b(?:unpaid|owed|overdue|late|not (?:been )?paid|"
+    r"(?:hasn['’]t|haven['’]t|didn['’]t) (?:been )?(?:paid|pay)|"
+    r"(?:missing|delayed|withheld) (?:salary|wages?|paycheck|paycheque))\b",
+    re.I,
+)
 
 ABSTENTION_MESSAGE = (
     "I could not find a verified law-library passage that is relevant to this question. "
@@ -86,7 +95,13 @@ def build_guide(
         )
 
     active_retriever = retriever or get_retriever()
-    passages = active_retriever.search(cleaned, category=category, top_k=3)
+    search_query = cleaned
+    search_category = category
+    if category in ("All", "labour") and _WORK_CONTEXT.search(cleaned) and _MISSING_PAY.search(cleaned):
+        search_category = "labour"
+        search_query = "unpaid salary wage payment"
+
+    passages = active_retriever.search(search_query, category=search_category, top_k=3)
 
     if not passages:
         return GuideResult(
